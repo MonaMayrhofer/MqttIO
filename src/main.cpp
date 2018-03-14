@@ -3,20 +3,23 @@
 #include <MqttClient.h>
 #include <Button.h>
 #include <NodeTime.h>
+#include "ButtonListener.h"
 
-Button buttonA(D0, false, true, 50);
+ButtonListener buttonA(D0, false, true, 50);
 
-void setup() {
-    Serial.begin(9600);
-    HttpServer.init();
-    MqttClient.init("/test/main");
-    NodeTime.setNtpTimeSubscriber();
+void buttonACallback(int mode){
+    Serial.print("Mode: ");
+    Serial.println(mode);
 
-
-    Serial.println("====== Home Interface =======");
-}
-
-void buttonEvent(String data){
+    String data;
+    switch(mode){
+        case BUTTON_LISTENER_LONG:
+        data = "longPress";break;
+        case BUTTON_LISTENER_MULTI:
+        data = "multiPress";break;
+        case BUTTON_LISTENER_SIMPLE:
+        data = "simplePress";break;
+    }
     String pressTime = String(NodeTime.getDateTime());
     pressTime.concat(";");
     pressTime.concat(data);
@@ -25,30 +28,19 @@ void buttonEvent(String data){
     MqttClient.publish("/test/button", pressTimeArr);
 }
 
-void buttonEventListener(){
-    static bool longPress = false;
-    buttonA.read();
-    if(buttonA.pressedFor(500) && !longPress){
-        longPress = true;
-    }
-   if(buttonA.wasReleased()){
-        if(!longPress){
-            buttonEvent("simplePress");
-        }
-        else if(longPress){
-            buttonEvent("longPress");
-        }
-        longPress = false;
-    }
+void setup() {
+    Serial.begin(9600);
+    HttpServer.init();
+    MqttClient.init("/test/main");
+    NodeTime.setNtpTimeSubscriber();
 
+    buttonA.setCallback(buttonACallback);
 
-
+    Serial.println("====== Home Interface =======");
 }
 
-int wait = 0;
-int abc = 0;
 void loop() {
     HttpServer.handleClient();
-    buttonEventListener();
+    buttonA.listen();
     delay(1);
 }
